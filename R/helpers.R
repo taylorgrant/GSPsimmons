@@ -35,7 +35,7 @@ read_simmons <- function(loc) {
   # drop unused categories
   dat <- dat |>
     dplyr::filter(category_tier_1 %in% keepers) |> 
-    dplyr::mutate(across(matches("sample|vertical|index"), as.numeric)) 
+    dplyr::mutate(across(matches("sample|weighted|vertical|horizontal|index"), as.numeric)) 
   # demographics function
   demos <- build_demographics(dat)
   gc()
