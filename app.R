@@ -320,6 +320,9 @@ server <- function(input, output) {
          folder <b>\"Microsoft Excel\"</b>.</li>
          <li>Restart Mac and relaunch the application to see the results.</li><br><br><br>")
   })
+  
+  
+  
 }
 
 # Complete app with UI and server components
