@@ -1,4 +1,4 @@
-pacman::p_load(shiny, shinythemes, shinyWidgets, shinyjs, DT, openxlsx)
+pacman::p_load(shiny, shinythemes, shinyWidgets, shinyBS, shinyjs, DT, openxlsx)
 
 # load helper functions
 source("/srv/shiny-server/GSPsimmons/R/helpers.R")
@@ -30,6 +30,10 @@ ui <- fluidPage(
   navbarPage(theme = shinytheme("flatly"), collapsible = TRUE,
              # HTML('<a style="text-decoration:none;cursor:default;color:#FFFFFF;" class="active" href="#">Simmons Segmentation</a>'), id="nav",
              title = tagList(actionLink("sidebar_button","",icon = icon("bars")), "Simmons Segmentation"),
+             tags$head(
+               # this changes the size of the popovers
+               tags$style(".popover{font-size:14px;}")
+             ),
 
 # TAB 1 - LOAD DATA -------------------------------------------------------
              tabPanel("Start here",
@@ -84,6 +88,7 @@ tabPanel("Psychographics",
              uiOutput('agreement'),
              uiOutput('vertical'),
              uiOutput('index'),
+             uiOutput('compare'),
              uiOutput('emptyRow'),
              uiOutput("step2"),
              uiOutput("run_filters"),
@@ -212,10 +217,39 @@ server <- function(input, output) {
                 max = 200,
                 value = c(90, 110))
   })
+  output$compare <- renderUI({
+    req(input$inFile, rv$data)
+    shiny::div(
+      shiny::div(style="display: inline-block; ;", 
+                 checkboxInput(inputId = "compare", label = "Comparison view", value = TRUE)),
+      shiny::div(style="display: inline-block;", 
+                 bsButton("q1", label = "", icon = icon("question"),
+                          style = "default", size = "extra-small"),
+                 bsPopover(id = "q1", title = "",
+                           content = "If this is checked, any row with at least one index under/over the set index threshold will retain all data for easy comparison across audiences.",
+                           placement = "right", 
+                           trigger = "hover", 
+                           options = list(container = "body")
+                 )
+      ))
+  })
   output$emptyRow <- renderUI({
     req(input$inFile, rv$data)
-    checkboxInput(inputId = "emptyRow", label = "Drop empty rows",
-                  value = FALSE)
+    shiny::div(
+      shiny::div(style="display: inline-block; ;", 
+                 checkboxInput(inputId = "emptyRow", label = "Drop empty rows",
+                               value = FALSE)),
+      shiny::div(style="display: inline-block;", 
+                 bsButton("q2", label = "", icon = icon("question"),
+                          style = "default", size = "extra-small"),
+                 bsPopover(id = "q2", title = "",
+                           content = "When checked, any row without an over/under index will be deleted. If you want to keep all psychographic statements, do not check this.",
+                           placement = "right", 
+                           trigger = "hover", 
+                           options = list(container = "body")
+                 )
+      ))
+    
   })
   output$step2 <- renderUI({
     req(input$inFile, rv$data)
@@ -244,6 +278,7 @@ server <- function(input, output) {
                            vertical = input$vertical, 
                            index1 = input$index[1],
                            index2 = input$index[2],
+                           compare = input$compare,
                            empty = input$emptyRow)
   })
   
