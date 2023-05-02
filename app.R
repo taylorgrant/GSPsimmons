@@ -335,8 +335,9 @@ server <- function(input, output) {
          <h4>What filters are available for Psychographics?</h4>
          <li>Agreement intensity: Level of agreement from Simmons</li>
          <li>Vertical % floor: Vertical % is greater than or equal to this.</li>
-         <li>Index thresholds: The lower and upper index thresholds.
-         <li>Drop rows: Drop rows where no audience under- or over-indexes.
+         <li>Index thresholds: The lower and upper index thresholds.</li>
+         <li>Drop rows: Drop rows where no audience under- or over-indexes.</li>
+         <li>Comparison view: Check to keep all data in the row if one audience index is significant.</li>
          <h4>What if I only want the over-indexing psychographics?</h4>
          Set the lower index threshold to 60. That should filter out the negative values.
          <h4>What if I want to change my thresholds?</h4>
