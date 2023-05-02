@@ -226,7 +226,7 @@ server <- function(input, output) {
                  bsButton("q1", label = "", icon = icon("question"),
                           style = "default", size = "extra-small"),
                  bsPopover(id = "q1", title = "",
-                           content = "If this is checked, any row with at least one index under/over the set index threshold will retain all data for easy comparison across audiences.",
+                           content = "If this is checked, any row with at least one index under/over the index threshold will retain all data for easy comparison across audiences.",
                            placement = "right", 
                            trigger = "hover", 
                            options = list(container = "body")
@@ -243,7 +243,7 @@ server <- function(input, output) {
                  bsButton("q2", label = "", icon = icon("question"),
                           style = "default", size = "extra-small"),
                  bsPopover(id = "q2", title = "",
-                           content = "When checked, any row without an over/under index will be deleted. If you want to keep all psychographic statements, do not check this.",
+                           content = "When checked, any row without an index over/under threshold will be deleted. Too keep all psychographic statements, keep this unchecked.",
                            placement = "right", 
                            trigger = "hover", 
                            options = list(container = "body")
