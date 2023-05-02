@@ -171,12 +171,14 @@ build_demo_tbl <- function(data) {
 
 
 # segment psychographics; filter vertical and index for each group; merge back
-psychographic_segments <- function(data, intensity, vertical, index1, index2, empty) {
+psychographic_segments <- function(data, intensity, vertical, index1, index2, compare, empty) {
   
   # load Simmons psychographic statements
   segments <- readRDS("/srv/shiny-server/GSPsimmons/data/all_simmons_segments.rds")
   # list of segments
   segment_list <- names(segments)
+  # function for rowwise comparison 
+  is.ou <- function(x) (x > index1 & index2 > x)
   
   # function: pull relevant segment statements from datahaul
   list_index <- function(data, cat) {
@@ -196,7 +198,7 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
     dplyr::mutate(across(matches("sample|vertical|index"), as.numeric))
   
   # function: filter each audience by vertical and index
-  filter_index <- function(group, intensity, vertical, index1, index2) {
+  filter_index <- function(group, intensity, vertical, index1, index2, compare) {
     quo_groupindex <- dplyr::sym(glue::glue("{group}_index"))
     quo_groupvert <- dplyr::sym(glue::glue("{group}_vertical"))
     
@@ -205,15 +207,27 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
       dplyr::select(segment:answer) |>
       dplyr::filter(answer == intensity)
     
-    # keep statements meeting vertical and index
-    tmp <- statements |>
-      dplyr::select(c(segment:answer, dplyr::matches(group))) |>
-      dplyr::filter(
-        answer == intensity &
-          !!quo_groupvert >= vertical &
-          (!!quo_groupindex <= index1 |
-             !!quo_groupindex >= index2)
-      ) 
+    if (compare == TRUE) {
+      # keep statements meeting vertical
+      tmp <- statements |>
+        dplyr::select(c(segment:answer, dplyr::matches(group))) |>
+        dplyr::filter(
+          answer == intensity &
+            !!quo_groupvert >= vertical
+          # (!!quo_groupindex <= index1 |
+          #    !!quo_groupindex >= index2)
+        )
+    } else {
+      # keep statements meeting vertical and index
+      tmp <- statements |>
+        dplyr::select(c(segment:answer, dplyr::matches(group))) |>
+        dplyr::filter(
+          answer == intensity &
+            !!quo_groupvert >= vertical &
+            (!!quo_groupindex <= index1 |
+               !!quo_groupindex >= index2)
+        )
+    }
     
     # full join so we have all statements
     tmp <- dplyr::full_join(all_statements, tmp) |> 
@@ -223,7 +237,7 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
   }
   
   # filter all psychographics for tab 4
-  filter_full_index <- function(group, intensity, vertical, index1, index2){
+  filter_full_index <- function(group, intensity, vertical, index1, index2, compare){
     quo_groupindex <- dplyr::sym(glue::glue("{group}_index"))
     quo_groupvert <- dplyr::sym(glue::glue("{group}_vertical"))
     
@@ -232,16 +246,29 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
       dplyr::select(category_tier_1, category = category_tier_2, question, answer) |>
       dplyr::filter(answer == intensity)
     
-    # keep statements matching vertical and index
-    tmp <- data$dat |>
-      dplyr::select(c(category_tier_1, category = category_tier_2, question,
-                      answer, dplyr::matches(group))) |> 
-      dplyr::filter(
-        answer == intensity &
-          !!quo_groupvert >= vertical &
-          (!!quo_groupindex <= index1 |
-             !!quo_groupindex >= index2)
-      ) 
+    if (compare == TRUE) {
+      # keep statements matching vertical
+      tmp <- data$dat |>
+        dplyr::select(c(category_tier_1, category = category_tier_2, question,
+                        answer, dplyr::matches(group))) |>
+        dplyr::filter(
+          answer == intensity &
+            !!quo_groupvert >= vertical
+          # (!!quo_groupindex <= index1 |
+          #    !!quo_groupindex >= index2)
+        )
+    } else {
+      # keep statements matching vertical and index
+      tmp <- data$dat |>
+        dplyr::select(c(category_tier_1, category = category_tier_2, question,
+                        answer, dplyr::matches(group))) |>
+        dplyr::filter(
+          answer == intensity &
+            !!quo_groupvert >= vertical &
+            (!!quo_groupindex <= index1 |
+               !!quo_groupindex >= index2)
+        )
+    }
     
     # # full join with all statements 
     tmp <- dplyr::full_join(all_psychographics, tmp) |>
@@ -320,7 +347,8 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
                              intensity = intensity,
                              vertical = vertical/100,
                              index1 = index1,
-                             index2 = index2)
+                             index2 = index2,
+                             compare = compare)
   
   # mapping with filter_index
   dat <- purrr::pmap(
@@ -329,7 +357,8 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
       tmp_tbl$intensity,
       tmp_tbl$vertical,
       tmp_tbl$index1,
-      tmp_tbl$index2
+      tmp_tbl$index2,
+      tmp_tbl$compare
     ),
     filter_index
   ) |>
@@ -343,7 +372,8 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
       tmp_tbl$intensity,
       tmp_tbl$vertical,
       tmp_tbl$index1,
-      tmp_tbl$index2
+      tmp_tbl$index2,
+      tmp_tbl$compare
     ),
     filter_full_index
   ) |>
@@ -362,6 +392,24 @@ psychographic_segments <- function(data, intensity, vertical, index1, index2, em
   ) |>
     purrr::set_names(nm = tmp_tbl$Definition) |>
     purrr::reduce(dplyr::full_join)
+  
+  # compare = to keep all column data when one index in the row exceeds thresholds
+  if (compare == TRUE) {
+    dat <- dat |>
+      dplyr::rowwise() |>
+      dplyr::mutate(exclude = all(dplyr::c_across(dplyr::matches("index")) |> is.ou())) |>
+      dplyr::mutate(dplyr::across(dplyr::matches("sample|vert|index"), ~ifelse(exclude == TRUE, NA, .))) |> 
+      dplyr::select(-exclude)
+    
+    full_dat <- full_dat |>
+      dplyr::rowwise() |>
+      dplyr::mutate(exclude = all(dplyr::c_across(dplyr::matches("index")) |> is.ou())) |>
+      dplyr::mutate(dplyr::across(dplyr::matches("sample|weighted|vert|horiz|index"), ~ifelse(exclude == TRUE, NA, .))) |> 
+      dplyr::select(-exclude)
+  } else {
+    dat
+    full_dat
+  }
   
   if (empty == TRUE) {
     dat <- dat |> dplyr::filter(dplyr::if_any(dplyr::matches("sample|vert|index"), ~ !is.na(.)))
