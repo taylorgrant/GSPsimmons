@@ -174,7 +174,7 @@ build_demo_tbl <- function(data) {
 psychographic_segments <- function(data, intensity, vertical, index1, index2, compare, empty) {
   
   # load Simmons psychographic statements
-  segments <- readRDS("/srv/shiny-server/GSPsimmons/data/all_simmons_segments.rds")
+  segments <- readRDS(here::here("data", "all_simmons_segments.rds"))
   # list of segments
   segment_list <- names(segments)
   # function for rowwise comparison 
