@@ -1,8 +1,8 @@
 pacman::p_load(shiny, shinythemes, shinyWidgets, shinyBS, shinyjs, DT, openxlsx)
 
 # load helper functions
-source("/srv/shiny-server/GSPsimmons/R/helpers.R")
-source("/srv/shiny-server/GSPsimmons/R/xlsx_build.R")
+source(here::here("R", "helpers.R"))
+source(here::here("R", "xlsx_build.R"))
 
 # to keep table headers sticky; DT fixedheader wouldn't hold when sidebar was retracted
 JS <- "
