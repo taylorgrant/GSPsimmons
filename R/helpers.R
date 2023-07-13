@@ -18,7 +18,8 @@ read_simmons <- function(loc) {
   grp_def <- dplyr::tibble("Group" = grp,
                            "Definition" = grp_definitions) |> 
     dplyr::mutate(Definition = trimws(stringr::str_replace_all(Definition, "xml:space=\"preserve\">", "")),
-                  Definition = stringr::str_replace_all(Definition, "&amp;", "&"))
+                  Definition = stringr::str_replace_all(Definition, "&amp;", "&"),
+                  Definition = stringr::str_replace_all(Definition, "\\{|\\}", ""))
   # drop group names; reset colnames; clean
   dat <- dat[-1,] |>
     janitor::row_to_names(row_number = 1) |>
