@@ -166,7 +166,7 @@ server <- function(input, output) {
   # print metadata as check on uploaded audiences
   output$txt <- renderUI({
     req(input$inFile, rv$data)
-    HTML(paste(h3("Data Check:"), rv$data$meta, 
+    HTML(paste(h3("Data Check:"), rv$data$meta,
                glue::glue("<br/><br/><b>There are {nrow(rv$data$grp_def)} audiences included in Datahaul:</b><br/>",
                           trimws(paste(rv$data$grp_def$Definition, collapse = "<br/>")))))
   })
