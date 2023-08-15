@@ -5,11 +5,14 @@ read_simmons <- function(loc) {
   keepers <- c("Base: Study Universe", "Demographics", "Political Outlook/Affiliation & Voting",
                "Hispanic Demos/Attitudes & HH Language", "Psychographics")
   message("Reading data...")
-  dat <- openxlsx::read.xlsx(loc, startRow = 1)
+  # dat <- openxlsx::read.xlsx(loc, startRow = 1) # OOD 
+  dat <- openxlsx::read.xlsx(loc, startRow = 1, colNames = FALSE)
   # pull simmons metadata
-  meta <- clean_meta(colnames(dat)[1])
+  # meta <- clean_meta(colnames(dat)[1]) # OOD
+  meta <- clean_meta(paste(dat$X1[1:8], collapse = "."))
   # read in group definitions from first row
-  grps <- dat[1,]
+  # grps <- dat[1,]
+  grps <- dat[9,]
   # pull out the audience definitions
   grp_locations <- seq(6, ncol(grps), by = 5)[-1]
   grp <- paste0("g", seq_len(length(grp_locations))+1)
@@ -21,7 +24,10 @@ read_simmons <- function(loc) {
                   Definition = stringr::str_replace_all(Definition, "&amp;", "&"),
                   Definition = stringr::str_replace_all(Definition, "\\{|\\}|\\(|\\)", ""))
   # drop group names; reset colnames; clean
-  dat <- dat[-1,] |>
+  # dat <- dat[-1,] |>
+  #   janitor::row_to_names(row_number = 1) |>
+  #   janitor::clean_names() # OOD
+  dat <- dat[-c(1:9),] |> 
     janitor::row_to_names(row_number = 1) |>
     janitor::clean_names()
   # rename the data
