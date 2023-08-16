@@ -5,14 +5,32 @@ read_simmons <- function(loc) {
   keepers <- c("Base: Study Universe", "Demographics", "Political Outlook/Affiliation & Voting",
                "Hispanic Demos/Attitudes & HH Language", "Psychographics")
   message("Reading data...")
-  # dat <- openxlsx::read.xlsx(loc, startRow = 1) # OOD 
+  # read in the spreadsheet
   dat <- openxlsx::read.xlsx(loc, startRow = 1, colNames = FALSE)
-  # pull simmons metadata
-  # meta <- clean_meta(colnames(dat)[1]) # OOD
-  meta <- clean_meta(paste(dat$X1[1:8], collapse = "."))
-  # read in group definitions from first row
-  # grps <- dat[1,]
-  grps <- dat[9,]
+  
+  # check if old MRI-Simmons Output
+  if (which(dat$X1 == "Category (Tier 1)") == 3) {
+    # clean the MRI Simmons Metadata
+    dat$X1[1] <- stringr::str_replace_all(dat$X1[1], "\r|\n", "")
+    dat$X1[1] <- stringr::str_replace_all(dat$X1[1], " ", ".")
+    # get metadata
+    meta <- trimws(clean_meta(dat$X1[1]))
+    # pull in group definitions from 2nd row
+    grps <- dat[2,]
+    # reset column defs
+    dat <- dat[-c(1:2),] |>
+      janitor::row_to_names(row_number = 1) |>
+      janitor::clean_names()
+  } else { # if new MRI-Simmons output
+    # get metadata
+    meta <- trimws(clean_meta(paste(dat$X1[1:8], collapse = ".")))
+    # pull in group definitions from 2nd row
+    grps <- dat[9,]
+    # reset column defs
+    dat <- dat[-c(1:9),] |>
+      janitor::row_to_names(row_number = 1) |>
+      janitor::clean_names()
+  }
   # pull out the audience definitions
   grp_locations <- seq(6, ncol(grps), by = 5)[-1]
   grp <- paste0("g", seq_len(length(grp_locations))+1)
@@ -23,13 +41,7 @@ read_simmons <- function(loc) {
     dplyr::mutate(Definition = trimws(stringr::str_replace_all(Definition, "xml:space=\"preserve\">", "")),
                   Definition = stringr::str_replace_all(Definition, "&amp;", "&"),
                   Definition = stringr::str_replace_all(Definition, "\\{|\\}|\\(|\\)", ""))
-  # drop group names; reset colnames; clean
-  # dat <- dat[-1,] |>
-  #   janitor::row_to_names(row_number = 1) |>
-  #   janitor::clean_names() # OOD
-  dat <- dat[-c(1:9),] |> 
-    janitor::row_to_names(row_number = 1) |>
-    janitor::clean_names()
+  
   # rename the data
   cat_names <- names(dat)[1:5]
   groups <- rep(seq_len((ncol(dat)/5) - 1), each = 5)
