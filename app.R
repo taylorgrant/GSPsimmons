@@ -34,8 +34,8 @@ ui <- fluidPage(
                # this changes the size of the popovers
                tags$style(".popover{font-size:14px;}")
              ),
-
-# TAB 1 - LOAD DATA -------------------------------------------------------
+             
+             # TAB 1 - LOAD DATA -------------------------------------------------------
              tabPanel("Start here",
                       tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")),
                       shiny::sidebarLayout(
@@ -63,86 +63,86 @@ ui <- fluidPage(
                         )
                       )
              ),
-
-# TAB 2 - DEMOGRAPHICS ----------------------------------------------------
-tabPanel("Demographics",
-         shiny::mainPanel(
-           tags$head(
-             tags$script(HTML(JS)) # call the JS
-           ),
-           shiny::fluidRow(
-             shiny::column(
-               width = 12,
-               DT::DTOutput("demos")
-             )
-           )
-         )
-),
-
-# TAB 3 - PSYCHOGRAPHICS --------------------------------------------------
-tabPanel("Psychographics",
-         div(
-           class = "sidebar",
-           shiny::sidebarPanel(
-             uiOutput("step1"),
-             uiOutput('agreement'),
-             uiOutput('vertical'),
-             uiOutput('index'),
-             uiOutput('compare'),
-             uiOutput('emptyRow'),
-             uiOutput("step2"),
-             uiOutput("run_filters"),
-             uiOutput('step3'),
-             br(),
-             uiOutput('download')
-           )
-         ), 
-         shiny::mainPanel(
-           tags$head(
-             tags$script(HTML(JS)) # call the JS
-           ),
-           shiny::fluidRow(
-             shiny::column(width = 12,
-                           DT::DTOutput('psychographics')
-             )
-           )
-         )),
-
-# TAB 4 - SEGMENTS --------------------------------------------------
-tabPanel("Segments",
-         shiny::mainPanel(
-           tags$head(
-             tags$script(HTML(JS)) # call the JS
-           ),
-           shiny::fluidRow(
-             shiny::column(width = 12,
-                           shiny::tabsetPanel(
-                             shiny::tabPanel("Segments",
-                                             DT::DTOutput("segments")
-                                             ),
-                             shiny::tabPanel("Summary",
-                                             DT::DTOutput("agree_matrix")
-                                             )
-                             
-                           )
-                           
-             )
-           )
-         )
-),
-tabPanel("FAQ",
-         shiny::mainPanel(
-           tags$head(
-             tags$script(HTML(JS)) # call the JS
-           ),
-           shiny::fluidRow(
-             shiny::column(
-               width = 12,
-               uiOutput("about") 
-             )
-           )
-         ))
-))
+             
+             # TAB 2 - DEMOGRAPHICS ----------------------------------------------------
+             tabPanel("Demographics",
+                      shiny::mainPanel(
+                        tags$head(
+                          tags$script(HTML(JS)) # call the JS
+                        ),
+                        shiny::fluidRow(
+                          shiny::column(
+                            width = 12,
+                            DT::DTOutput("demos")
+                          )
+                        )
+                      )
+             ),
+             
+             # TAB 3 - PSYCHOGRAPHICS --------------------------------------------------
+             tabPanel("Psychographics",
+                      div(
+                        class = "sidebar",
+                        shiny::sidebarPanel(
+                          uiOutput("step1"),
+                          uiOutput('agreement'),
+                          uiOutput('vertical'),
+                          uiOutput('index'),
+                          uiOutput('compare'),
+                          uiOutput('emptyRow'),
+                          uiOutput("step2"),
+                          uiOutput("run_filters"),
+                          uiOutput('step3'),
+                          br(),
+                          uiOutput('download')
+                        )
+                      ), 
+                      shiny::mainPanel(
+                        tags$head(
+                          tags$script(HTML(JS)) # call the JS
+                        ),
+                        shiny::fluidRow(
+                          shiny::column(width = 12,
+                                        DT::DTOutput('psychographics')
+                          )
+                        )
+                      )),
+             
+             # TAB 4 - SEGMENTS --------------------------------------------------
+             tabPanel("Segments",
+                      shiny::mainPanel(
+                        tags$head(
+                          tags$script(HTML(JS)) # call the JS
+                        ),
+                        shiny::fluidRow(
+                          shiny::column(width = 12,
+                                        shiny::tabsetPanel(
+                                          shiny::tabPanel("Segments",
+                                                          DT::DTOutput("segments")
+                                          ),
+                                          shiny::tabPanel("Summary",
+                                                          DT::DTOutput("agree_matrix")
+                                          )
+                                          
+                                        )
+                                        
+                          )
+                        )
+                      )
+             ),
+             tabPanel("FAQ",
+                      shiny::mainPanel(
+                        tags$head(
+                          tags$script(HTML(JS)) # call the JS
+                        ),
+                        shiny::fluidRow(
+                          shiny::column(
+                            width = 12,
+                            uiOutput("about") 
+                          )
+                        )
+                      ))
+  ))
 
 ### SHINY SERVER ###
 server <- function(input, output) {
@@ -307,9 +307,9 @@ server <- function(input, output) {
       xlsx_build(segment_data(), file)
     }
   )
-
-# SHINY SERVER - ABOUT -------------------------------------------------------
-
+  
+  # SHINY SERVER - ABOUT -------------------------------------------------------
+  
   output$about <- renderUI({
     HTML("<h4>What is this?</h4>This is an app that cuts down a Simmons DataHaul and provides you with
          the demographic profile and psychographics of your audiences.<br><h4>How does it work?</h4>
