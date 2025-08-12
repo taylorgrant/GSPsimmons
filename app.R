@@ -4,6 +4,9 @@ pacman::p_load(shiny, shinythemes, shinyWidgets, shinyBS, shinyjs, DT, openxlsx)
 source(here::here("R", "helpers.R"))
 source(here::here("R", "xlsx_build.R"))
 
+# increase upload size 
+options(shiny.maxRequestSize = 100*1024^2)
+
 # to keep table headers sticky; DT fixedheader wouldn't hold when sidebar was retracted
 JS <- "
 $(document).ready(function() {
