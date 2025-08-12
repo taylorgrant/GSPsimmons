@@ -25,9 +25,9 @@ read_simmons <- function(loc) {
     # get metadata
     meta <- trimws(clean_meta(paste(dat$X1[1:8], collapse = ".")))
     # pull in group definitions from 2nd row
-    grps <- dat[9,]
+    grps <- dat[10,]
     # reset column defs
-    dat <- dat[-c(1:9),] |>
+    dat <- dat[-c(1:10),] |>
       janitor::row_to_names(row_number = 1) |>
       janitor::clean_names()
   }
