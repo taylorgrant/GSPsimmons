@@ -236,95 +236,6 @@ build_demographics <- function(tbl) {
     f_build(f_filter(tbl))
   })
   return(pieces)
-  # total <- tbl |>
-  #   dplyr::filter(category_tier_1 == "Base: Study Universe") |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = "<b>Total Universe</b>")
-  # gender <- tbl |>
-  #   dplyr::filter(question == "Bases" & answer %in% c("Men", "Women")) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>Gender:</b> {answer}"))
-  # age <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_2 == "Respondent" &
-  #       answer %in% c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
-  #   ) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>Age:</b> {answer}"))
-  # generation <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_2 == "Respondent" & question == "Generations"
-  #   ) |>
-  #   dplyr::filter(!stringr::str_detect(answer, "Early|Late|Pre-")) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(
-  #     answer = gsub("\\[.*", "", answer),
-  #     answer = glue::glue("<b>Generation:</b><br> {answer}")
-  #   )
-  # educ <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_2 == "Respondent" & question == "Highest Degree Received"
-  #   ) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>Highest Degree:</b><br> {answer}"))
-  # pid <- tbl |>
-  #   dplyr::filter(question == "Political Affiliation") |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>PID:</b> {answer}"))
-  # pol <- tbl |>
-  #   dplyr::filter(question == "Political Outlook") |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>Political Outlook:</b><br> {answer}"))
-  # hhi <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_2 == "Household" & question == "Household Income {HH}"
-  #   ) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(
-  #     answer = stringr::str_replace_all(answer, "-", "-$"),
-  #     answer = glue::glue("<b>Household Income:</b><br> ${answer}"),
-  #     answer = stringr::str_replace_all(answer, "Dollars", "")
-  #   )
-  # region <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_2 == "Household" & question == "Marketing Region {HH}"
-  #   ) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>Marketing Region:</b><br> {answer}"))
-  # county <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_2 == "Household" & question == "County Size {HH}"
-  #   ) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>County Size:</b> {answer}"))
-  # race <- tbl |>
-  #   dplyr::filter(category_tier_2 == "Respondent" & question == "Race") |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(answer = glue::glue("<b>Race:</b> {answer}"))
-  # ethnicity <- tbl |>
-  #   dplyr::filter(
-  #     category_tier_1 == "Hispanic Demos/Attitudes & HH Language" &
-  #       question == "Spanish Or Hispanic Origin"
-  #   ) |>
-  #   dplyr::select(-c(category_tier_1:question)) |>
-  #   dplyr::mutate(
-  #     answer = glue::glue("<b>Spanish or Hispanic Origin:</b> {answer}")
-  #   )
-
-  # tmpout <- rbind(
-  #   total,
-  #   gender,
-  #   age,
-  #   generation,
-  #   educ,
-  #   pid,
-  #   pol,
-  #   hhi,
-  #   region,
-  #   county,
-  #   race,
-  #   ethnicity
-  # )
 }
 
 # cleaning meta data for initial read in and check
@@ -499,7 +410,11 @@ psychographic_segments <- function(
     }
 
     # full join so we have all statements
-    tmp <- dplyr::full_join(all_statements, tmp) |>
+    tmp <- dplyr::full_join(
+      all_statements,
+      tmp,
+      by = dplyr::join_by(segment, question, answer)
+    ) |>
       dplyr::mutate(
         segment = stringr::str_to_title(stringr::str_replace_all(
           segment,
@@ -570,7 +485,11 @@ psychographic_segments <- function(
     }
 
     # # full join with all statements
-    tmp <- dplyr::full_join(all_psychographics, tmp) |>
+    tmp <- dplyr::full_join(
+      all_psychographics,
+      tmp,
+      by = dplyr::join_by(category_tier_1, category, question, answer)
+    ) |>
       dplyr::mutate(
         category = paste0("<b>", category, "</b>"),
         question = sapply(question, function(x) {
@@ -660,7 +579,7 @@ psychographic_segments <- function(
         purrr::set_names(nm = c("segment", glue::glue("{group}_over-index")))
     }
 
-    tmp <- dplyr::left_join(neg_out, pos_out) |>
+    tmp <- dplyr::left_join(neg_out, pos_out, by = dplyr::join_by(segment)) |>
       dplyr::mutate(
         segment = stringr::str_to_title(stringr::str_replace_all(
           segment,
@@ -695,7 +614,10 @@ psychographic_segments <- function(
     filter_index
   ) |>
     purrr::set_names(nm = tmp_tbl$Definition) |>
-    purrr::reduce(dplyr::full_join)
+    purrr::reduce(
+      # dplyr::full_join,
+      ~ dplyr::full_join(.x, .y, by = dplyr::join_by(segment, question, answer))
+    )
 
   # mapping with filter full index
   full_dat <- purrr::pmap(
@@ -710,7 +632,14 @@ psychographic_segments <- function(
     filter_full_index
   ) |>
     purrr::set_names(nm = tmp_tbl$Definition) |>
-    purrr::reduce(dplyr::full_join)
+    purrr::reduce(
+      # dplyr::full_join,
+      ~ dplyr::full_join(
+        .x,
+        .y,
+        by = dplyr::join_by(category_tier_1, category, question, answer)
+      )
+    )
 
   agree_matrix <- purrr::pmap(
     list(
