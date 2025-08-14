@@ -1,72 +1,81 @@
 # Helper functions for Simmons App #
+KEEPERS <- c(
+  "Base: Study Universe",
+  "Demographics",
+  "Political Outlook/Affiliation & Voting",
+  "Hispanic Demos/Attitudes & HH Language",
+  "Psychographics"
+)
 
 # Read in Simmons Datahaul; clean; get group names and totals; pull demos
 read_simmons <- function(loc) {
-  keepers <- c(
-    "Base: Study Universe",
-    "Demographics",
-    "Political Outlook/Affiliation & Voting",
-    "Hispanic Demos/Attitudes & HH Language",
-    "Psychographics"
-  )
   message("Reading data...")
   # read in the spreadsheet
-  dat <- openxlsx::read.xlsx(loc, startRow = 1, colNames = FALSE)
+  raw <- openxlsx::read.xlsx(loc, startRow = 1, colNames = FALSE)
 
-  # check if old MRI-Simmons Output
-  if (which(dat$X1 == "Category (Tier 1)") == 3) {
-    # clean the MRI Simmons Metadata
-    dat$X1[1] <- stringr::str_replace_all(dat$X1[1], "\r|\n", "")
-    dat$X1[1] <- stringr::str_replace_all(dat$X1[1], " ", ".")
-    # get metadata
-    meta <- trimws(clean_meta(dat$X1[1]))
-    # pull in group definitions from 2nd row
-    grps <- dat[2, ]
-    # reset column defs
-    dat <- dat[-c(1:2), ] |>
-      janitor::row_to_names(row_number = 1) |>
-      janitor::clean_names()
+  # locate the header row by text in first column
+  first_col <- names(raw)[1]
+  header_idx <- which(grepl(
+    "Category\\s*\\(\\s*Tier\\s*1\\s*\\)",
+    raw[[first_col]],
+    ignore.case = TRUE
+  ))[1]
+  # validate_layout(raw, header_idx)
+
+  # group definitions live in the row immediately above the header
+  grps <- raw[header_idx - 1, , drop = FALSE]
+
+  # metadata = everything above the group row
+  meta_rows <- seq_len(max(header_idx - 2, 0))
+  meta_text <- if (length(meta_rows)) {
+    paste(raw[[first_col]][meta_rows], collapse = ".")
   } else {
-    # if new MRI-Simmons output
-    # get metadata
-    meta <- trimws(clean_meta(paste(dat$X1[1:8], collapse = ".")))
-    # pull in group definitions from 2nd row
-    grps <- dat[10, ]
-    # reset column defs
-    dat <- dat[-c(1:10), ] |>
-      janitor::row_to_names(row_number = 1) |>
-      janitor::clean_names()
+    ""
   }
-  # pull out the audience definitions
+  meta_text <- gsub(" ", ".", meta_text)
+  meta <- trimws(clean_meta(meta_text))
+
+  # slice down to the table, promote header, clean names
+  dat <- raw[-seq_len(header_idx - 1), , drop = FALSE] |>
+    janitor::row_to_names(1) |>
+    janitor::clean_names()
+
+  # Expect first 5 are: category_tier_1, category_tier_2, category, question, answer
+  if (ncol(dat) < 10) {
+    stop("Input has too few columns after header normalization.")
+  }
+
+  # pull the audience definitions
   grp_locations <- seq(6, ncol(grps), by = 5)[-1]
-  grp <- paste0("g", seq_len(length(grp_locations)) + 1)
-  grp_definitions <- dplyr::tibble(
-    nm = trimws(unlist(grps[1, grp_locations]))
+  grp_ids <- paste0("g", seq_along(grp_locations) + 1)
+  grp_definitions <- trimws(unlist(grps[1, grp_locations]))
+  grp_def <- tibble::tibble(
+    Group = grp_ids,
+    Definition = grp_definitions
   ) |>
-    dplyr::pull(nm)
-  grp_def <- dplyr::tibble("Group" = grp, "Definition" = grp_definitions) |>
     dplyr::mutate(
-      Definition = trimws(stringr::str_replace_all(
+      Definition = stringr::str_replace_all(
         Definition,
         "xml:space=\"preserve\">",
         ""
-      )),
+      ),
       Definition = stringr::str_replace_all(Definition, "&amp;", "&"),
-      Definition = stringr::str_replace_all(Definition, "\\{|\\}|\\(|\\)", "")
+      Definition = stringr::str_replace_all(Definition, "\\{|\\}|\\(|\\)", ""),
+      Definition = trimws(Definition)
     )
 
-  # rename the data
+  # rename the data columns
   cat_names <- names(dat)[1:5]
   groups <- rep(seq_len((ncol(dat) / 5) - 1), each = 5)
-  name_parts <- c('sample', 'weighted', 'vertical', 'horizontal', 'index')
+  name_parts <- c("sample", "weighted", "vertical", "horizontal", "index")
   new_names <- c(cat_names, paste0("g", groups, "_", name_parts))
-  # rename with new names
   dat <- dat |>
-    purrr::set_names(nm = new_names) |>
-    dplyr::rename_at(dplyr::vars(contains("g1")), ~ (sub('g1', 'base', .)))
-  # drop unused categories
+    purrr::set_names(new_names) |>
+    dplyr::rename_with(~ sub("g1", "base", .x), dplyr::contains("g1"))
+
+  # filter categories + convert numerics
   dat <- dat |>
-    dplyr::filter(category_tier_1 %in% keepers) |>
+    dplyr::filter(category_tier_1 %in% KEEPERS) |>
     dplyr::mutate(across(
       matches("sample|weighted|vertical|horizontal|index"),
       as.numeric
@@ -80,95 +89,226 @@ read_simmons <- function(loc) {
 # pull out the relevant demographics for each Datahaul group
 build_demographics <- function(tbl) {
   message("Pulling demographics...")
-  total <- tbl |>
-    dplyr::filter(category_tier_1 == "Base: Study Universe") |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = "<b>Total Universe</b>")
-  gender <- tbl |>
-    dplyr::filter(question == "Bases" & answer %in% c("Men", "Women")) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>Gender:</b> {answer}"))
-  age <- tbl |>
-    dplyr::filter(
-      category_tier_2 == "Respondent" &
-        answer %in% c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
-    ) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>Age:</b> {answer}"))
-  generation <- tbl |>
-    dplyr::filter(
-      category_tier_2 == "Respondent" & question == "Generations"
-    ) |>
-    dplyr::filter(!stringr::str_detect(answer, "Early|Late|Pre-")) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(
-      answer = gsub("\\[.*", "", answer),
-      answer = glue::glue("<b>Generation:</b><br> {answer}")
+  # tiny helpers used below
+  label <- function(df, fmt) dplyr::mutate(df, answer = glue::glue(fmt))
+  drop_meta <- function(df) {
+    dplyr::select(
+      df,
+      -category_tier_1,
+      -category_tier_2,
+      -category_tier_3,
+      -question
     )
-  educ <- tbl |>
-    dplyr::filter(
-      category_tier_2 == "Respondent" & question == "Highest Degree Received"
-    ) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>Highest Degree:</b><br> {answer}"))
-  pid <- tbl |>
-    dplyr::filter(question == "Political Affiliation") |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>PID:</b> {answer}"))
-  pol <- tbl |>
-    dplyr::filter(question == "Political Outlook") |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>Political Outlook:</b><br> {answer}"))
-  hhi <- tbl |>
-    dplyr::filter(
-      category_tier_2 == "Household" & question == "Household Income {HH}"
-    ) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(
-      answer = stringr::str_replace_all(answer, "-", "-$"),
-      answer = glue::glue("<b>Household Income:</b><br> ${answer}"),
-      answer = stringr::str_replace_all(answer, "Dollars", "")
-    )
-  region <- tbl |>
-    dplyr::filter(
-      category_tier_2 == "Household" & question == "Marketing Region {HH}"
-    ) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>Marketing Region:</b><br> {answer}"))
-  county <- tbl |>
-    dplyr::filter(
-      category_tier_2 == "Household" & question == "County Size {HH}"
-    ) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>County Size:</b> {answer}"))
-  race <- tbl |>
-    dplyr::filter(category_tier_2 == "Respondent" & question == "Race") |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(answer = glue::glue("<b>Race:</b> {answer}"))
-  ethnicity <- tbl |>
-    dplyr::filter(
-      category_tier_1 == "Hispanic Demos/Attitudes & HH Language" &
-        question == "Spanish Or Hispanic Origin"
-    ) |>
-    dplyr::select(-c(category_tier_1:question)) |>
-    dplyr::mutate(
-      answer = glue::glue("<b>Spanish or Hispanic Origin:</b> {answer}")
-    )
+  }
 
-  tmpout <- rbind(
-    total,
-    gender,
-    age,
-    generation,
-    educ,
-    pid,
-    pol,
-    hhi,
-    region,
-    county,
-    race,
-    ethnicity
+  # spec: each entry defines how to filter + how to label; optional post() to tweak
+  demo_specs <- list(
+    total = list(
+      filter = ~ dplyr::filter(.x, category_tier_1 == "Base: Study Universe"),
+      build = ~ .x |>
+        drop_meta() |>
+        dplyr::mutate(answer = "<b>Total Universe</b>")
+    ),
+    gender = list(
+      filter = ~ dplyr::filter(
+        .x,
+        question == "Bases",
+        answer %in% c("Men", "Women")
+      ),
+      build = ~ .x |> drop_meta() |> label("<b>Gender:</b> {answer}")
+    ),
+    age = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Respondent",
+        answer %in% c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+      ),
+      build = ~ .x |> drop_meta() |> label("<b>Age:</b> {answer}")
+    ),
+    generation = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Respondent",
+        question == "Generations"
+      ) |>
+        dplyr::filter(!stringr::str_detect(answer, "Early|Late|Pre-")),
+      build = ~ .x |>
+        drop_meta() |>
+        dplyr::mutate(
+          answer = gsub("\\[.*", "", answer),
+          answer = trimws(answer)
+        ) |>
+        label("<b>Generation:</b><br> {answer}")
+    ),
+    educ = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Respondent",
+        question == "Highest Degree Received"
+      ),
+      build = ~ .x |>
+        drop_meta() |>
+        label("<b>Highest Degree:</b><br> {answer}")
+    ),
+    pid = list(
+      filter = ~ dplyr::filter(.x, question == "Political Affiliation"),
+      build = ~ .x |> drop_meta() |> label("<b>PID:</b> {answer}")
+    ),
+    pol = list(
+      filter = ~ dplyr::filter(.x, question == "Political Outlook"),
+      build = ~ .x |>
+        drop_meta() |>
+        label("<b>Political Outlook:</b><br> {answer}")
+    ),
+    hhi = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Household",
+        question == "Household Income {HH}"
+      ),
+      build = ~ .x |>
+        drop_meta() |>
+        dplyr::mutate(
+          answer = stringr::str_replace_all(answer, "[\u2013\u2014]", "-"),
+          answer = stringr::str_replace_all(answer, "-", "-$"),
+          answer = stringr::str_replace_all(answer, "(?i)\\s*Dollars", "")
+        ) |>
+        # keep your simple, robust approach: put the leading $ in the label, not via regex groups
+        label("<b>Household Income:</b><br> ${answer}")
+    ),
+    region = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Household",
+        question == "Marketing Region {HH}"
+      ),
+      build = ~ .x |>
+        drop_meta() |>
+        label("<b>Marketing Region:</b><br> {answer}")
+    ),
+    county = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Household",
+        question == "County Size {HH}"
+      ),
+      build = ~ .x |> drop_meta() |> label("<b>County Size:</b> {answer}")
+    ),
+    race = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Respondent",
+        question == "Race"
+      ),
+      build = ~ .x |> drop_meta() |> label("<b>Race:</b> {answer}")
+    ),
+    ethnicity = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_1 == "Hispanic Demos/Attitudes & HH Language",
+        question == "Spanish Or Hispanic Origin"
+      ),
+      build = ~ .x |>
+        drop_meta() |>
+        label("<b>Spanish or Hispanic Origin:</b> {answer}")
+    )
   )
+
+  pieces <- purrr::map_dfr(demo_specs, function(spec) {
+    f_filter <- rlang::as_function(spec$filter)
+    f_build <- rlang::as_function(spec$build)
+    f_build(f_filter(tbl))
+  })
+  return(pieces)
+  # total <- tbl |>
+  #   dplyr::filter(category_tier_1 == "Base: Study Universe") |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = "<b>Total Universe</b>")
+  # gender <- tbl |>
+  #   dplyr::filter(question == "Bases" & answer %in% c("Men", "Women")) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>Gender:</b> {answer}"))
+  # age <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_2 == "Respondent" &
+  #       answer %in% c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+  #   ) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>Age:</b> {answer}"))
+  # generation <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_2 == "Respondent" & question == "Generations"
+  #   ) |>
+  #   dplyr::filter(!stringr::str_detect(answer, "Early|Late|Pre-")) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(
+  #     answer = gsub("\\[.*", "", answer),
+  #     answer = glue::glue("<b>Generation:</b><br> {answer}")
+  #   )
+  # educ <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_2 == "Respondent" & question == "Highest Degree Received"
+  #   ) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>Highest Degree:</b><br> {answer}"))
+  # pid <- tbl |>
+  #   dplyr::filter(question == "Political Affiliation") |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>PID:</b> {answer}"))
+  # pol <- tbl |>
+  #   dplyr::filter(question == "Political Outlook") |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>Political Outlook:</b><br> {answer}"))
+  # hhi <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_2 == "Household" & question == "Household Income {HH}"
+  #   ) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(
+  #     answer = stringr::str_replace_all(answer, "-", "-$"),
+  #     answer = glue::glue("<b>Household Income:</b><br> ${answer}"),
+  #     answer = stringr::str_replace_all(answer, "Dollars", "")
+  #   )
+  # region <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_2 == "Household" & question == "Marketing Region {HH}"
+  #   ) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>Marketing Region:</b><br> {answer}"))
+  # county <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_2 == "Household" & question == "County Size {HH}"
+  #   ) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>County Size:</b> {answer}"))
+  # race <- tbl |>
+  #   dplyr::filter(category_tier_2 == "Respondent" & question == "Race") |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(answer = glue::glue("<b>Race:</b> {answer}"))
+  # ethnicity <- tbl |>
+  #   dplyr::filter(
+  #     category_tier_1 == "Hispanic Demos/Attitudes & HH Language" &
+  #       question == "Spanish Or Hispanic Origin"
+  #   ) |>
+  #   dplyr::select(-c(category_tier_1:question)) |>
+  #   dplyr::mutate(
+  #     answer = glue::glue("<b>Spanish or Hispanic Origin:</b> {answer}")
+  #   )
+
+  # tmpout <- rbind(
+  #   total,
+  #   gender,
+  #   age,
+  #   generation,
+  #   educ,
+  #   pid,
+  #   pol,
+  #   hhi,
+  #   region,
+  #   county,
+  #   race,
+  #   ethnicity
+  # )
 }
 
 # cleaning meta data for initial read in and check
