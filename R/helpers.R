@@ -13,14 +13,13 @@ read_simmons <- function(loc) {
   # read in the spreadsheet
   raw <- openxlsx::read.xlsx(loc, startRow = 1, colNames = FALSE)
 
-  # locate the header row by text in first column
+  # locate the header row by text in first column -> Category Tier 1
   first_col <- names(raw)[1]
   header_idx <- which(grepl(
     "Category\\s*\\(\\s*Tier\\s*1\\s*\\)",
     raw[[first_col]],
     ignore.case = TRUE
   ))[1]
-  # validate_layout(raw, header_idx)
 
   # group definitions live in the row immediately above the header
   grps <- raw[header_idx - 1, , drop = FALSE]

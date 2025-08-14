@@ -1,4 +1,13 @@
-pacman::p_load(shiny, shinythemes, shinyWidgets, shinyBS, shinyjs, DT, openxlsx)
+pacman::p_load(
+  shiny,
+  shinythemes,
+  shinyWidgets,
+  shinyBS,
+  shinyjs,
+  DT,
+  openxlsx,
+  bslib
+)
 
 # load helper functions
 source(here::here("R", "helpers.R"))
@@ -31,9 +40,8 @@ $(document).ready(function() {
 ui <- shiny::fluidPage(
   shinyjs::useShinyjs(),
   shiny::navbarPage(
-    theme = shinythemes::shinytheme("flatly"),
+    theme = bslib::bs_theme(bootswatch = "flatly", version = 5),
     collapsible = TRUE,
-    # HTML('<a style="text-decoration:none;cursor:default;color:#FFFFFF;" class="active" href="#">Simmons Segmentation</a>'), id="nav",
     title = tagList(
       shiny::actionLink("sidebar_button", "", icon = shiny::icon("bars")),
       "Simmons Segmentation"
@@ -53,14 +61,14 @@ ui <- shiny::fluidPage(
       )),
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          shiny::span(
-            tags$i(h5(
+          shiny::h5(
+            tags$i(
               "STEP 1: Locate your Simmons Datahaul to read in",
               tags$br(),
               tags$br(),
-              "This can take up to a minute fully read in"
-            )),
-            style = "color:#045a8d"
+              "This can take up to a minute to fully read in"
+            ),
+            style = "color:#045a8d; font-size:16px; font-weight:400;"
           ),
           shiny::fileInput(
             inputId = 'inFile',
@@ -106,28 +114,27 @@ ui <- shiny::fluidPage(
     # TAB 3 - PSYCHOGRAPHICS --------------------------------------------------
     shiny::tabPanel(
       "Psychographics",
-      shiny::div(
-        class = "sidebar",
-        shiny::sidebarPanel(
+      tags$head(tags$script(HTML(JS))), # your sticky header JS
+
+      shiny::sidebarLayout(
+        position = "left", # default
+        sidebarPanel = shiny::sidebarPanel(
           shiny::uiOutput("step1"),
-          shiny::uiOutput('agreement'),
-          shiny::uiOutput('vertical'),
-          shiny::uiOutput('index'),
-          shiny::uiOutput('compare'),
-          shiny::uiOutput('emptyRow'),
+          shiny::uiOutput("agreement"),
+          shiny::uiOutput("vertical"),
+          shiny::uiOutput("index"),
+          shiny::uiOutput("compare"),
+          shiny::uiOutput("emptyRow"),
           shiny::uiOutput("step2"),
           shiny::uiOutput("run_filters"),
-          shiny::uiOutput('step3'),
+          shiny::uiOutput("step3"),
           shiny::br(),
-          shiny::uiOutput('download')
-        )
-      ),
-      shiny::mainPanel(
-        tags$head(
-          tags$script(HTML(JS)) # call the JS
+          shiny::uiOutput("download"),
+          width = 3 # or 2, depending on how tight you want it
         ),
-        shiny::fluidRow(
-          shiny::column(width = 12, DT::DTOutput('psychographics'))
+        mainPanel = shiny::mainPanel(
+          DT::DTOutput("psychographics"),
+          width = 9 # fills the rest automatically
         )
       )
     ),
@@ -169,9 +176,6 @@ ui <- shiny::fluidPage(
 
 ### SHINY SERVER ###
 server <- function(input, output) {
-  # upping data limit on uploads
-  options(shiny.maxRequestSize = 30 * 1024^2)
-
   shiny::observeEvent(input$sidebar_button, {
     shinyjs::toggle(selector = ".sidebar")
   })
@@ -201,9 +205,11 @@ server <- function(input, output) {
   # sidebar notes
   output$inputComplete <- shiny::renderUI({
     shiny::req(input$inFile, rv$data)
-    shiny::span(
-      tags$i(h5("Your data is ready and can be found in the tabs above")),
-      style = "color:#045a8d"
+    shiny::h5(
+      tags$i(
+        "Your data is ready and can be found in the tabs above",
+      ),
+      style = "color:#045a8d; font-size:16px; font-weight:400;"
     )
   })
 
@@ -220,11 +226,11 @@ server <- function(input, output) {
   # sidebar information
   output$step1 <- shiny::renderUI({
     shiny::req(input$inFile, rv$data)
-    shiny::span(
-      tags$i(h5(
-        "STEP 1: Select the criteria of interest for your Simmons pull"
-      )),
-      style = "color:#045a8d"
+    shiny::h5(
+      tags$i(
+        "STEP 1: Select the criteria of interest for your Simmons pull",
+      ),
+      style = "color:#045a8d; font-size:16px; font-weight:400;"
     )
   })
   output$agreement <- shiny::renderUI({
@@ -265,73 +271,59 @@ server <- function(input, output) {
       value = c(90, 110)
     )
   })
-  output$compare <- shiny::renderUI({
-    shiny::req(input$inFile, rv$data)
-    shiny::div(
-      shiny::div(
-        style = "display: inline-block; ;",
-        shiny::checkboxInput(
-          inputId = "compare",
-          label = "Comparison view",
-          value = TRUE
-        )
+  output$compare <- renderUI({
+    req(input$inFile, rv$data)
+
+    div(
+      style = "display: flex; align-items: flex-start; gap: 6px;",
+
+      checkboxInput(
+        inputId = "compare",
+        label = "Comparison view",
+        value = TRUE
       ),
-      shiny::div(
-        style = "display: inline-block;",
-        shinyBS::bsButton(
-          "q1",
-          label = "",
-          icon = icon("question"),
-          style = "default",
-          size = "extra-small"
-        ),
-        shinyBS::bsPopover(
-          id = "q1",
-          title = "",
-          content = "If this is checked, any row with at least one index under/over the index threshold will retain all data for easy comparison across audiences.",
-          placement = "right",
-          trigger = "hover",
-          options = list(container = "body")
+      actionButton(
+        inputId = "btn_tip",
+        label = NULL,
+        icon = icon("question-circle"),
+        class = "btn-sm"
+      ) |>
+        tooltip(
+          "If this is checked, rows with any significant index will retain all data for comparison."
         )
-      )
     )
   })
-  output$emptyRow <- shiny::renderUI({
-    shiny::req(input$inFile, rv$data)
-    shiny::div(
-      shiny::div(
-        style = "display: inline-block; ;",
-        shiny::checkboxInput(
-          inputId = "emptyRow",
-          label = "Drop empty rows",
-          value = FALSE
-        )
+
+  output$emptyRow <- renderUI({
+    req(input$inFile, rv$data)
+
+    div(
+      style = "display: flex; align-items: flex-start; gap: 6px;",
+
+      checkboxInput(
+        inputId = "emptyRow",
+        label = "Drop empty rows",
+        value = FALSE
       ),
-      shiny::div(
-        style = "display: inline-block;",
-        shinyBS::bsButton(
-          "q2",
-          label = "",
-          icon = icon("question"),
-          style = "default",
-          size = "extra-small"
-        ),
-        shinyBS::bsPopover(
-          id = "q2",
-          title = "",
-          content = "When checked, any row without an index over/under threshold will be deleted. Too keep all psychographic statements, keep this unchecked.",
-          placement = "right",
-          trigger = "hover",
-          options = list(container = "body")
+      actionButton(
+        inputId = "btn_tip",
+        label = NULL,
+        icon = icon("question-circle"),
+        class = "btn-sm"
+      ) |>
+        tooltip(
+          "When checked, any row without an index over/under threshold will be deleted. Too keep all psychographic statements, keep this unchecked."
         )
-      )
     )
   })
+
   output$step2 <- shiny::renderUI({
     shiny::req(input$inFile, rv$data)
-    shiny::span(
-      tags$i(h5("STEP 2: Once you've selected all criteria, hit 'Run' below")),
-      style = "color:#045a8d"
+    shiny::h5(
+      tags$i(
+        "STEP 2: Once you've selected all criteria, hit 'Run' below",
+      ),
+      style = "color:#045a8d; font-size:16px; font-weight:400;"
     )
   })
   output$run_filters <- shiny::renderUI({
@@ -344,11 +336,21 @@ server <- function(input, output) {
     )
   })
   output$step3 <- shiny::renderUI({
-    shiny::req(input$inFile, rv$data)
-    shiny::HTML(
-      "<H5 style=\"color: #045a8d\"><I>STEP 3: Change any selection and hit 'Run' again.<br><br>If you need more room, press the <i class=\"fa-solid fa-bars\"></i> in the navbar to collapse this window.</I></H5"
+    req(input$inFile, rv$data)
+    tags$h5(
+      style = "color: #045a8d; font-size:16px; font-weight:400;",
+      tags$i(
+        tags$br(),
+        "STEP 3: Change any selection and hit 'Run' again.",
+        tags$br(),
+        tags$br(),
+        "If you need more room, press the ",
+        tags$i(class = "fa-solid fa-bars"),
+        " in the navbar to collapse this window."
+      )
     )
   })
+
   output$download <- shiny::renderUI({
     shiny::req(input$run_filters, segment_data())
     shiny::downloadButton("downloadData", "Download your data")
@@ -368,19 +370,17 @@ server <- function(input, output) {
   })
 
   # build out tables
+
   shiny::observeEvent(input$run_filters, {
     output$psychographics <- DT::renderDT(
       build_psychographic_tbl(segment_data())
     )
-
     output$agree_matrix <- DT::renderDT(
       build_agreement_tbl(segment_data())
     )
-
     output$segments <- DT::renderDT(
       build_segment_tbl(segment_data())
     )
-
     output$extra <- renderPrint(
       names(segment_data())
     )
