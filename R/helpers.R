@@ -140,6 +140,22 @@ build_demographics <- function(tbl) {
         ) |>
         label("<b>Generation:</b><br> {answer}")
     ),
+    marital = list(
+      filter = ~ dplyr::filter(
+        .x,
+        category_tier_2 == "Respondent",
+        question == "Marital Status",
+        answer %in%
+          c(
+            "Never Married",
+            "Now Married",
+            "Widowed",
+            "Divorced",
+            "Separated (legally)"
+          )
+      ),
+      build = ~ .x |> drop_meta() |> label("<b>Marital Status:</b> {answer}")
+    ),
     educ = list(
       filter = ~ dplyr::filter(
         .x,
