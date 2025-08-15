@@ -141,7 +141,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Demos",
       cols = indices[i],
-      rows = 3:nrow(demos),
+      rows = 3:(nrow(demos) + 2),
       rule = "<=90",
       style = negStyle
     )
@@ -149,7 +149,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Demos",
       cols = indices[i],
-      rows = 3:nrow(demos),
+      rows = 3:(nrow(demos) + 2),
       rule = ">=110",
       style = posStyle
     )
@@ -174,7 +174,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Psychographics",
       cols = psy_indices[i],
-      rows = 3:nrow(psychographics),
+      rows = 3:(nrow(psychographics) + 2),
       type = 'between',
       rule = c(1, 90),
       style = negStyle
@@ -183,7 +183,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Psychographics",
       cols = psy_indices[i],
-      rows = 3:nrow(psychographics),
+      rows = 3:(nrow(psychographics) + 2),
       rule = ">=110",
       style = posStyle
     )
@@ -208,7 +208,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Segments",
       cols = seg_indices[i],
-      rows = 3:nrow(segments),
+      rows = 3:(nrow(segments) + 2),
       type = 'between',
       rule = c(1, 90),
       style = negStyle
@@ -217,7 +217,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Segments",
       cols = seg_indices[i],
-      rows = 3:nrow(segments),
+      rows = 3:(nrow(segments) + 2),
       rule = ">=110",
       style = posStyle
     )
@@ -237,7 +237,7 @@ xlsx_build <- function(data, file) {
       wb,
       "Segment Summary",
       cols = sum_indices[i],
-      rows = 3:nrow(summary),
+      rows = 3:(nrow(summary) + 2),
       rule = ">=.4",
       style = posStyle
     )
